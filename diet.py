@@ -17,6 +17,14 @@ percentage_prot = 0.3
 percentage_carb = 0.5
 percentage_fat = 0.2
 
+# total_calories = int(input('Entre com o total de calorias por dia: '))
+# days_period = int(input('Entre com o periodo de dias: '))
+# total_calories = total_calories * days_period
+
+# percentage_prot = float(input('Entre com a porcentagem de proteínas em formato decimal: '))
+# percentage_carb = float(input('Entre com a porcentagem de carboidratos em formato decimal: '))
+# percentage_fat = float(input('Entre com a porcentagem de gordura em formato decimal: '))
+
 # compute total calories per macro
 cal_prot = round(percentage_prot * total_calories)
 cal_carb = round(percentage_carb * total_calories)
@@ -180,4 +188,77 @@ def main():
 best_solution = main()
 
 products_table['univariate_choice'] = pd.Series(best_solution[0])
-print(products_table)
+print(products_table[['Name', 'univariate_choice']])
+
+# in this second version, we optimize for the four components of the shopping list: calories, protein, fat and carbs
+# if we need to make everything as important, we should add a weight to them
+# we know that there are 30% protein calories, 20% fat and 50% carbs.
+weights = (-1., -1. / 0.3, -1. / 0.2, -1./0.5)
+
+creator.create("FitnessMin", base.Fitness, weights=weights)
+creator.create("Individual", list, fitness=creator.FitnessMin)
+
+def evaluate(individual):
+    individual = individual[0]
+    tot_prot = sum(x*y for x,y in zip(prot_data,individual))
+    tot_fat = sum(x*y for x,y in zip(fat_data,individual))
+    tot_carb = sum(x*y for x,y in zip(carb_data,individual))
+    cals = prot_cal_p_gram * tot_prot + carb_cal_p_gram * tot_carb + fat_cal_p_gram * tot_fat
+    
+    
+    return abs(cals - total_calories), \
+            abs(tot_prot - gram_prot), \
+            abs(tot_fat - gram_fat), \
+            abs(tot_carb - gram_carb), \
+
+# this is the setup of the deap library: registering the different function into the toolbox
+toolbox = base.Toolbox()
+
+toolbox.register("n_per_product", n_per_product)
+
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.n_per_product, n=1)
+toolbox.register("population", tools.initRepeat, list, toolbox.individual)
+
+toolbox.register("evaluate", evaluate)
+toolbox.register("mate", tools.cxTwoPoint)
+toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+toolbox.register("select", tools.selTournament, tournsize=3)
+
+toolbox.register("evaluate", evaluate)
+toolbox.register("mate", tools.cxTwoPoint)
+toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+toolbox.register("select", tools.selTournament, tournsize=3)
+
+best_solution = main()
+
+products_table['multivariate_choice'] = pd.Series(best_solution[0])
+
+
+products_table['univariate_gr_prot'] = products_table['univariate_choice'] * products_table['Gram_Prot']
+products_table['univariate_gr_fat'] = products_table['univariate_choice'] * products_table['Gram_Fat']
+products_table['univariate_gr_carb'] = products_table['univariate_choice'] * products_table['Gram_Carb']
+products_table['univariate_cal'] = products_table['univariate_choice'] * products_table['Calories']
+
+products_table['multivariate_gr_prot'] = products_table['multivariate_choice'] * products_table['Gram_Prot']
+products_table['multivariate_gr_fat'] = products_table['multivariate_choice'] * products_table['Gram_Fat']
+products_table['multivariate_gr_carb'] = products_table['multivariate_choice'] * products_table['Gram_Carb']
+products_table['multivariate_cal'] = products_table['multivariate_choice'] * products_table['Calories']
+
+summary = pd.DataFrame.from_records(
+[
+    [products_table['univariate_gr_prot'].sum(), products_table['multivariate_gr_prot'].sum(), gram_prot],
+    [products_table['univariate_gr_fat'].sum(), products_table['multivariate_gr_fat'].sum(), gram_fat],
+    [products_table['univariate_gr_carb'].sum(), products_table['multivariate_gr_carb'].sum(), gram_carb],
+    [products_table['univariate_cal'].sum(), products_table['multivariate_cal'].sum(), sum((cal_prot, cal_carb, cal_fat))]
+])
+summary.columns = ['univariate', 'multivariate', 'goal']
+summary.index = ['prot', 'fat', 'carb', 'cal']
+summary["univ_error"] = (summary["goal"] - summary["univariate"]).apply(abs)
+summary["multiv_error"] = (summary["goal"] - summary["multivariate"]).apply(abs)
+
+print(summary)
+
+print((summary["univ_error"].sum(), summary["multiv_error"].sum()))
+
+# Shopping list
+print(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
