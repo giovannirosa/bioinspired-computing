@@ -5,6 +5,7 @@ from deap import base
 from deap import creator
 from deap import tools
 import time
+import matplotlib.pyplot as plt
 
 # goal percentages original
 # total_calories = 2500 * 7
@@ -194,12 +195,19 @@ def main(multi=False):
         mean = sum(fits) / length
         sum2 = sum(x*x for x in fits)
         std = abs(sum2 / length - mean**2)**0.5
-        gen.loc[g] = [min(fits), max(fits), mean, std]
+        gen.loc[:,g] = [min(fits), max(fits), mean, std]
+        # print(gen)
         print(min(fits), max(fits), mean, std)
 
     best = pop[np.argmin([toolbox.evaluate(x) for x in pop])]
-    # boxplot = gen.boxplot(column=[range(1,100)])
+    _, ax = plt.subplots()
+    genMean = gen.iloc[2,0:10].to_frame()
+    genMean.columns = ['mean']
+    genMean.plot(ax=ax)
+    boxplot = gen.boxplot(column=[i for i in range(1, 11)], grid=False)
 
+    plt.show()
+    input()
     end_time = time.time()
 
     if multi:
@@ -224,7 +232,7 @@ for i in range(35):
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("evaluate", evaluate_mono)
 
-    gen = pd.DataFrame(columns=['min', 'max', 'mean', 'std'])
+    gen = pd.DataFrame()
 
     # as an example, this is what a population of 10 shopping lists looks like
     # print(toolbox.population(n=10))
@@ -250,7 +258,7 @@ for i in range(35):
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     toolbox.register("evaluate", evaluate_mult)
 
-    gen = pd.DataFrame(columns=['min', 'max', 'mean', 'std'])
+    gen = pd.DataFrame()
 
     best_solution = main(True)
 
