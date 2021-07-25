@@ -18,7 +18,7 @@ total_calories = 3000 * 7
 percentage_prot = 0.3
 percentage_carb = 0.5
 percentage_fat = 0.2
-
+number_generation = 100
 # total_calories = int(input('Entre com o total de calorias por dia: '))
 # days_period = int(input('Entre com o periodo de dias: '))
 # total_calories = total_calories * days_period
@@ -158,7 +158,7 @@ def main(multi=False):
     g = 0
 
     # Begin the evolution
-    while g < 100:
+    while g < number_generation:
         # A new generation
         g += 1
         print("-- Generation %i --" % g)
@@ -195,19 +195,27 @@ def main(multi=False):
         mean = sum(fits) / length
         sum2 = sum(x*x for x in fits)
         std = abs(sum2 / length - mean**2)**0.5
-        gen.loc[:,g] = [min(fits), max(fits), mean, std]
+        gen.loc[:,g] = fits
         # print(gen)
         print(min(fits), max(fits), mean, std)
 
     best = pop[np.argmin([toolbox.evaluate(x) for x in pop])]
     _, ax = plt.subplots()
-    genMean = gen.iloc[2,0:10].to_frame()
-    genMean.columns = ['mean']
-    genMean.plot(ax=ax)
-    boxplot = gen.boxplot(column=[i for i in range(1, 11)], grid=False)
+    columns = [i for i in range(1, number_generation, int(number_generation/10))]
+    columns.append(number_generation)
 
-    plt.show()
-    input()
+    genFilteredColumns = gen[columns]
+    mean = pd.DataFrame(columns=['mean'])
+    for i in range(1,number_generation+1):
+        mean.loc[i] = gen[i].mean()
+    mean.plot(ax=ax)
+
+    plt.savefig("images/mean.png")
+    _, ax = plt.subplots()
+    boxplot = genFilteredColumns.boxplot(ax=ax, grid=False)
+
+    plt.savefig("images/boxplot.png")
+
     end_time = time.time()
 
     if multi:
