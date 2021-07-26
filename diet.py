@@ -6,18 +6,20 @@ from deap import creator
 from deap import tools
 import time
 import matplotlib.pyplot as plt
+from datetime import datetime
+import sys, os
 
 # goal percentages original
-# total_calories = 2500 * 7
-# percentage_prot = 0.3
-# percentage_carb = 0.5
-# percentage_fat = 0.2
-
-# goal percentages
-total_calories = 3000 * 7
+total_calories = 2500 * 7
 percentage_prot = 0.3
 percentage_carb = 0.5
 percentage_fat = 0.2
+
+# goal percentages
+# total_calories = 3000 * 7
+# percentage_prot = 0.3
+# percentage_carb = 0.5
+# percentage_fat = 0.2
 number_generation = 100
 # total_calories = int(input('Entre com o total de calorias por dia: '))
 # days_period = int(input('Entre com o periodo de dias: '))
@@ -26,6 +28,28 @@ number_generation = 100
 # percentage_prot = float(input('Entre com a porcentagem de proteínas em formato decimal: '))
 # percentage_carb = float(input('Entre com a porcentagem de carboidratos em formato decimal: '))
 # percentage_fat = float(input('Entre com a porcentagem de gordura em formato decimal: '))
+
+id_time = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
+dir = f"logs/run_{int(percentage_prot * 10)}_{int(percentage_carb * 10)}_{int(percentage_fat * 10)}_{id_time}"
+os.mkdir(dir)
+
+class Logger(object):
+    def __init__(self):
+        self.terminal = sys.stdout
+        self.log = open(os.path.join(dir, "run_{}_{}.txt".format(number_generation, id_time)), "w")
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        # this flush method is needed for python 3 compatibility.
+        # this handles the flush command by doing nothing.
+        # you might want to specify some extra behavior here.
+        pass
+
+
+sys.stdout = Logger()
 
 # compute total calories per macro
 cal_prot = round(percentage_prot * total_calories)
@@ -199,18 +223,24 @@ def main(multi=False):
     best = pop[np.argmin([toolbox.evaluate(x) for x in pop])]
     end_time = time.time()
 
+    time_passed = end_time - start_time
+
+    print(f"{time_passed} seconds")
+
     if multi:
         global mult_time
-        mult_time = (mult_time + end_time - start_time) / 2
+        mult_time = (mult_time + time_passed) / 2
     else:
         global mono_time
-        mono_time = (mono_time + end_time - start_time) / 2
+        mono_time = (mono_time + time_passed) / 2
 
     return best
 
 
 gen_list_mono = []
 gen_list_mult = []
+err_list = []
+shop_list = []
 
 for i in range(35):
     print("-- Round %i --" % i)
@@ -294,12 +324,14 @@ for i in range(35):
     summary["multiv_error"] = (
         summary["goal"] - summary["multivariate"]).apply(abs)
 
+    err_list.append(summary)
+
     # print(summary)
 
     # print((summary["univ_error"].sum(), summary["multiv_error"].sum()))
 
     # Shopping list
-    # print(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
+    shop_list.append(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
 
 
 # average values in 35 rounds
@@ -313,7 +345,7 @@ columns = [i for i in range(1, number_generation, int(number_generation/10))]
 columns.append(number_generation)
 genFilteredColumns = df_means[columns]
 boxplot = genFilteredColumns.boxplot(ax=ax, grid=False)
-plt.savefig("images/boxplot.png")
+plt.savefig(os.path.join(dir, f"boxplot_{number_generation}_{id_time}.png"))
 
 # plot line chart
 _, ax = plt.subplots()
@@ -321,7 +353,19 @@ mean = pd.DataFrame(columns=['mean'])
 for i in range(1,number_generation+1):
     mean.loc[i] = df_means[i].mean()
 mean.plot(ax=ax)
-plt.savefig("images/mean.png")
+plt.savefig(os.path.join(dir, f"mean_{number_generation}_{id_time}.png"))
+
+# average errors in 35 rounds
+df_concat = pd.concat(err_list)
+by_row_index = df_concat.groupby(df_concat.index)
+df_means = by_row_index.mean()
+df_means.to_csv(os.path.join(dir, f'errors_{number_generation}_{id_time}.csv'))
+
+# average shopping lists in 35 rounds
+df_concat = pd.concat(shop_list)
+by_row_index = df_concat.groupby(df_concat.index)
+df_means = by_row_index.mean()
+df_means.to_csv(os.path.join(dir, f'shop_{number_generation}_{id_time}.csv'))
 
 
 print("mono execution time = {}".format(mono_time))
