@@ -102,8 +102,6 @@ def evaluate_mono(individual):
     tot_carb = sum(x*y for x, y in zip(carb_data, individual))
     cals = prot_cal_p_gram * tot_prot + carb_cal_p_gram * \
         tot_carb + fat_cal_p_gram * tot_fat
-    if abs(cals - total_calories) == 0:
-        print('ZERO *')
     return abs(cals - total_calories),
 
 
@@ -161,7 +159,7 @@ def main(multi=False):
     while g < number_generation:
         # A new generation
         g += 1
-        print("-- Generation %i --" % g)
+        # print("-- Generation %i --" % g)
 
         # Select the next generation individuals
         offspring = toolbox.select(pop, len(pop))
@@ -196,26 +194,9 @@ def main(multi=False):
         sum2 = sum(x*x for x in fits)
         std = abs(sum2 / length - mean**2)**0.5
         gen.loc[:,g] = fits
-        # print(gen)
-        print(min(fits), max(fits), mean, std)
+        # print(min(fits), max(fits), mean, std)
 
     best = pop[np.argmin([toolbox.evaluate(x) for x in pop])]
-    _, ax = plt.subplots()
-    columns = [i for i in range(1, number_generation, int(number_generation/10))]
-    columns.append(number_generation)
-
-    genFilteredColumns = gen[columns]
-    mean = pd.DataFrame(columns=['mean'])
-    for i in range(1,number_generation+1):
-        mean.loc[i] = gen[i].mean()
-    mean.plot(ax=ax)
-
-    plt.savefig("images/mean.png")
-    _, ax = plt.subplots()
-    boxplot = genFilteredColumns.boxplot(ax=ax, grid=False)
-
-    plt.savefig("images/boxplot.png")
-
     end_time = time.time()
 
     if multi:
@@ -228,9 +209,11 @@ def main(multi=False):
     return best
 
 
-gen_list = []
+gen_list_mono = []
+gen_list_mult = []
 
 for i in range(35):
+    print("-- Round %i --" % i)
     # this is the setup of the deap library: registering the different function into the toolbox
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
@@ -246,10 +229,10 @@ for i in range(35):
     # print(toolbox.population(n=10))
     best_solution = main()
 
-    gen_list.append(gen)
+    gen_list_mono.append(gen)
 
     products_table['univariate_choice'] = pd.Series(best_solution[0])
-    print(products_table[['Name', 'univariate_choice']])
+    # print(products_table[['Name', 'univariate_choice']])
 
     # ------------------------------------------------------------------------------------------------------------------
 
@@ -270,7 +253,8 @@ for i in range(35):
 
     best_solution = main(True)
 
-    gen_list.append(gen)
+    gen_list_mult.append(gen)
+
 
     products_table['multivariate_choice'] = pd.Series(best_solution[0])
 
@@ -310,12 +294,35 @@ for i in range(35):
     summary["multiv_error"] = (
         summary["goal"] - summary["multivariate"]).apply(abs)
 
-    print(summary)
+    # print(summary)
 
-    print((summary["univ_error"].sum(), summary["multiv_error"].sum()))
+    # print((summary["univ_error"].sum(), summary["multiv_error"].sum()))
 
     # Shopping list
-    print(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
+    # print(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
 
-print("mono  execution time = {}".format(mono_time))
-print("multi execution time = {}".format(mult_time))
+
+# average values in 35 rounds
+df_concat = pd.concat(gen_list_mono)
+by_row_index = df_concat.groupby(df_concat.index)
+df_means = by_row_index.mean()
+
+# plot boxplot
+_, ax = plt.subplots()
+columns = [i for i in range(1, number_generation, int(number_generation/10))]
+columns.append(number_generation)
+genFilteredColumns = df_means[columns]
+boxplot = genFilteredColumns.boxplot(ax=ax, grid=False)
+plt.savefig("images/boxplot.png")
+
+# plot line chart
+_, ax = plt.subplots()
+mean = pd.DataFrame(columns=['mean'])
+for i in range(1,number_generation+1):
+    mean.loc[i] = df_means[i].mean()
+mean.plot(ax=ax)
+plt.savefig("images/mean.png")
+
+
+print("mono execution time = {}".format(mono_time))
+print("mult execution time = {}".format(mult_time))
