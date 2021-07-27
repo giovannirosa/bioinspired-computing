@@ -117,8 +117,6 @@ def n_per_product():
 
  # this is the function used by the algorithm for evaluation
 # I chose it to be the absolute difference of the number of calories in the planning and the goal of calories
-
-
 def evaluate_mono(individual):
     individual = individual[0]
     tot_prot = sum(x*y for x, y in zip(prot_data, individual))
@@ -136,29 +134,16 @@ def evaluate_mult(individual):
     tot_carb = sum(x*y for x, y in zip(carb_data, individual))
     cals = prot_cal_p_gram * tot_prot + carb_cal_p_gram * \
         tot_carb + fat_cal_p_gram * tot_fat
-
     return abs(cals - total_calories), \
         abs(tot_prot - gram_prot), \
         abs(tot_fat - gram_fat), \
         abs(tot_carb - gram_carb), \
 
-
-
-toolbox = base.Toolbox()
-
-toolbox.register("n_per_product", n_per_product)
-
-toolbox.register("mate", tools.cxTwoPoint)
-toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
-toolbox.register("select", tools.selTournament, tournsize=3)
-
 mult_time = 0
 mono_time = 0
 
 # this is the definition of the total genetic algorithm is executed, it is almost literally copied from the deap library
-
-
-def main(multi=False):
+def main(toolbox, multi=False):
     start_time = time.time()
     pop = toolbox.population(n=300)
 
@@ -174,7 +159,7 @@ def main(multi=False):
     CXPB, MUTPB = 0.5, 0.2
 
     # Extracting all the fitnesses of
-    fits = [ind.fitness.values[0] for ind in pop]
+    # fits = [ind.fitness.values[0] for ind in pop]
 
     # Variable keeping track of the number of generations
     g = 0
@@ -248,6 +233,14 @@ for i in range(35):
     creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
     creator.create("Individual", list, fitness=creator.FitnessMin)
 
+    toolbox = base.Toolbox()
+
+    toolbox.register("n_per_product", n_per_product)
+
+    toolbox.register("mate", tools.cxTwoPoint)
+    toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+
     toolbox.register("individual", tools.initRepeat,
                      creator.Individual, toolbox.n_per_product, n=1)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -257,7 +250,7 @@ for i in range(35):
 
     # as an example, this is what a population of 10 shopping lists looks like
     # print(toolbox.population(n=10))
-    best_solution = main()
+    best_solution = main(toolbox)
 
     gen_list_mono.append(gen)
 
@@ -274,6 +267,14 @@ for i in range(35):
     creator.create("FitnessMin", base.Fitness, weights=weights)
     creator.create("Individual", list, fitness=creator.FitnessMin)
 
+    toolbox = base.Toolbox()
+
+    toolbox.register("n_per_product", n_per_product)
+
+    toolbox.register("mate", tools.cxTwoPoint)
+    toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+
     toolbox.register("individual", tools.initRepeat,
                      creator.Individual, toolbox.n_per_product, n=1)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
@@ -281,7 +282,7 @@ for i in range(35):
 
     gen = pd.DataFrame()
 
-    best_solution = main(True)
+    best_solution = main(toolbox, True)
 
     gen_list_mult.append(gen)
 
@@ -331,6 +332,7 @@ for i in range(35):
     # print((summary["univ_error"].sum(), summary["multiv_error"].sum()))
 
     # Shopping list
+    # print(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
     shop_list.append(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
 
 
@@ -365,6 +367,8 @@ df_means.to_csv(os.path.join(dir, f'errors_{number_generation}_{id_time}.csv'))
 df_concat = pd.concat(shop_list)
 by_row_index = df_concat.groupby(df_concat.index)
 df_means = by_row_index.mean()
+df_means['multivariate_choice'] = df_means['multivariate_choice'].round()
+df_means['univariate_choice'] = df_means['univariate_choice'].round()
 df_means.to_csv(os.path.join(dir, f'shop_{number_generation}_{id_time}.csv'))
 
 

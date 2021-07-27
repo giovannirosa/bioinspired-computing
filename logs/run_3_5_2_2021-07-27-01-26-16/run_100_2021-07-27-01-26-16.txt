@@ -1,0 +1,32 @@
+-- Round 0 --
+0.9697790145874023 seconds
+1.117272138595581 seconds
+      univariate  multivariate          goal  univ_error  multiv_error
+prot         890           771   1312.500000  422.500000    541.500000
+fat          880           900    388.888889  491.111111    511.111111
+carb        1505          1579   2187.500000  682.500000    608.500000
+cal        17899         17890  17500.000000  399.000000    390.000000
+                        Name  multivariate_choice  univariate_choice
+0                  Banana 1u                    5                  5
+1                Mandarin 1u                    8                  3
+2                Ananas 100g                    0                  1
+3                Grapes 100g                    2                  6
+4            Chocolate 1 bar                    4                  0
+5           Hard Cheese 100g                    2                  1
+6           Soft Cheese 100g                    0                  0
+7                 Pesto 100g                    9                  7
+8              Hoummous 100g                    0                  3
+9       Aubergine Paste 100g                    1                  5
+10             Protein Shake                    2                  7
+11           Veggie Burger 1                    3                  1
+12           Veggie Burger 2                    7                  5
+13                Boiled Egg                    1                  4
+14                Backed Egg                    6                  7
+15       Baguette Bread Half                    7                  9
+16      Square Bread 1 slice                    5                  0
+17           Cheese Pizza 1u                    1                  1
+18           Veggie Pizza 1u                    6                  3
+19            Soy Milk 200ml                    2                  9
+20  Soy Chocolate Milk 250ml                    5                  9
+mono execution time = 0.48488950729370117
+mult execution time = 0.5586360692977905
