@@ -205,6 +205,7 @@ def main(toolbox, multi=False):
         gen.loc[:,g] = fits
         # print(min(fits), max(fits), mean, std)
 
+
     best = pop[np.argmin([toolbox.evaluate(x) for x in pop])]
     end_time = time.time()
 
@@ -346,6 +347,8 @@ _, ax = plt.subplots()
 columns = [i for i in range(1, number_generation, int(number_generation/10))]
 columns.append(number_generation)
 genFilteredColumns = df_means[columns]
+ax.set_xlabel('Number generation')
+ax.set_ylabel('Fitness')
 boxplot = genFilteredColumns.boxplot(ax=ax, grid=False)
 plt.savefig(os.path.join(dir, f"boxplot_{number_generation}_{id_time}.png"))
 
@@ -354,7 +357,10 @@ _, ax = plt.subplots()
 mean = pd.DataFrame(columns=['mean'])
 for i in range(1,number_generation+1):
     mean.loc[i] = df_means[i].mean()
+ax.set_xlabel('Number generation')
+ax.set_ylabel('Fitness')
 mean.plot(ax=ax)
+
 plt.savefig(os.path.join(dir, f"mean_{number_generation}_{id_time}.png"))
 
 # average errors in 35 rounds
