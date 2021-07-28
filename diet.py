@@ -7,20 +7,21 @@ from deap import tools
 import time
 import matplotlib.pyplot as plt
 from datetime import datetime
-import sys, os
+import sys
+import os
 
-# goal percentages original
+ERROR_METHOD = 'rmse'
+# ERROR_METHOD = 'mae'
+
+NUMBER_GEN = 500
+ROUNDS = 35
+
+# goal percentages
 total_calories = 2500 * 7
 percentage_prot = 0.3
 percentage_carb = 0.5
 percentage_fat = 0.2
 
-# goal percentages
-# total_calories = 3000 * 7
-# percentage_prot = 0.3
-# percentage_carb = 0.5
-# percentage_fat = 0.2
-number_generation = 50
 # total_calories = int(input('Entre com o total de calorias por dia: '))
 # days_period = int(input('Entre com o periodo de dias: '))
 # total_calories = total_calories * days_period
@@ -30,13 +31,15 @@ number_generation = 50
 # percentage_fat = float(input('Entre com a porcentagem de gordura em formato decimal: '))
 
 id_time = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
-dir = f"logs/run_{int(percentage_prot * 10)}_{int(percentage_carb * 10)}_{int(percentage_fat * 10)}_{id_time}"
+dir = f"logs/run_{ERROR_METHOD}_{NUMBER_GEN}_{id_time}"
 os.mkdir(dir)
+
 
 class Logger(object):
     def __init__(self):
         self.terminal = sys.stdout
-        self.log = open(os.path.join(dir, "run_{}_{}.txt".format(number_generation, id_time)), "w")
+        self.log = open(os.path.join(
+            dir, f"run_{ERROR_METHOD}_{NUMBER_GEN}_{id_time}.txt"), "w")
 
     def write(self, message):
         self.terminal.write(message)
@@ -119,25 +122,39 @@ def n_per_product():
 # I chose it to be the absolute difference of the number of calories in the planning and the goal of calories
 def evaluate_mono(individual):
     individual = individual[0]
-    tot_prot = sum(x*y for x, y in zip(prot_data, individual))
-    tot_fat = sum(x*y for x, y in zip(fat_data, individual))
-    tot_carb = sum(x*y for x, y in zip(carb_data, individual))
-    cals = prot_cal_p_gram * tot_prot + carb_cal_p_gram * \
-        tot_carb + fat_cal_p_gram * tot_fat
+    tot_prot = sum(x*y for x, y in zip(prot_data,
+                   individual)) * prot_cal_p_gram
+    tot_fat = sum(x*y for x, y in zip(fat_data, 
+                   individual)) * fat_cal_p_gram
+    tot_carb = sum(x*y for x, y in zip(carb_data,
+                   individual)) * carb_cal_p_gram
+    cals = tot_prot + tot_carb + tot_fat
     return abs(cals - total_calories),
+
+
+targets = [total_calories, cal_prot, cal_fat, cal_carb]
 
 
 def evaluate_mult(individual):
     individual = individual[0]
-    tot_prot = sum(x*y for x, y in zip(prot_data, individual))
-    tot_fat = sum(x*y for x, y in zip(fat_data, individual))
-    tot_carb = sum(x*y for x, y in zip(carb_data, individual))
-    cals = prot_cal_p_gram * tot_prot + carb_cal_p_gram * \
-        tot_carb + fat_cal_p_gram * tot_fat
-    return abs(cals - total_calories), \
-        abs(tot_prot - gram_prot), \
-        abs(tot_fat - gram_fat), \
-        abs(tot_carb - gram_carb), \
+    tot_prot = sum(x*y for x, y in zip(prot_data,
+                   individual)) * prot_cal_p_gram
+    tot_fat = sum(x*y for x, y in zip(fat_data, individual)) * fat_cal_p_gram
+    tot_carb = sum(x*y for x, y in zip(carb_data,
+                   individual)) * carb_cal_p_gram
+    cals = tot_prot + tot_carb + tot_fat
+    prediction = [cals, tot_prot, tot_fat, tot_carb]
+    if ERROR_METHOD == 'rmse':
+        rmse = np.sqrt(
+            (sum((i - j)**2 for i, j in zip(prediction, targets)) / len(targets)))
+        return rmse,
+    else:
+        mae = (abs(cals - total_calories) +
+               abs(tot_prot - cal_prot) +
+               abs(tot_fat - cal_fat) +
+               abs(tot_carb - cal_carb)) / 4
+        return mae,
+
 
 mult_time = 0
 mono_time = 0
@@ -165,7 +182,7 @@ def main(toolbox, multi=False):
     g = 0
 
     # Begin the evolution
-    while g < number_generation:
+    while g < NUMBER_GEN:
         # A new generation
         g += 1
         # print("-- Generation %i --" % g)
@@ -198,13 +215,12 @@ def main(toolbox, multi=False):
         # Gather all the fitnesses in one list and print the stats
         fits = [ind.fitness.values[0] for ind in pop]
 
-        length = len(pop)
-        mean = sum(fits) / length
-        sum2 = sum(x*x for x in fits)
-        std = abs(sum2 / length - mean**2)**0.5
-        gen.loc[:,g] = fits
+        # length = len(pop)
+        # mean = sum(fits) / length
+        # sum2 = sum(x*x for x in fits)
+        # std = abs(sum2 / length - mean**2)**0.5
+        gen.loc[:, g] = fits
         # print(min(fits), max(fits), mean, std)
-
 
     best = pop[np.argmin([toolbox.evaluate(x) for x in pop])]
     end_time = time.time()
@@ -227,14 +243,13 @@ gen_list_mono = []
 gen_list_mult = []
 err_list = []
 shop_list = []
-sum_err_mono = 0
-sum_err_mult = 0
 
-for i in range(35):
+# this is the setup of the deap library: registering the different function into the toolbox
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
+creator.create("Individual", list, fitness=creator.FitnessMin)
+
+for i in range(ROUNDS):
     print("-- Round %i --" % i)
-    # this is the setup of the deap library: registering the different function into the toolbox
-    creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-    creator.create("Individual", list, fitness=creator.FitnessMin)
 
     toolbox = base.Toolbox()
 
@@ -262,13 +277,8 @@ for i in range(35):
 
     # ------------------------------------------------------------------------------------------------------------------
 
-    # in this second version, we optimize for the four components of the shopping list: calories, protein, fat and carbs
-    # if we need to make everything as important, we should add a weight to them
-    # we know that there are 30% protein calories, 20% fat and 50% carbs.
-    weights = (-1., -1. / 0.3, -1. / 0.2, -1./0.5)
-
-    creator.create("FitnessMin", base.Fitness, weights=weights)
-    creator.create("Individual", list, fitness=creator.FitnessMin)
+    # creator.create("FitnessMin", base.Fitness, weights=(-1.,))
+    # creator.create("Individual", list, fitness=creator.FitnessMin)
 
     toolbox = base.Toolbox()
 
@@ -288,7 +298,6 @@ for i in range(35):
     best_solution = main(toolbox, True)
 
     gen_list_mult.append(gen)
-
 
     products_table['multivariate_choice'] = pd.Series(best_solution[0])
 
@@ -323,23 +332,12 @@ for i in range(35):
         ])
     summary.columns = ['univariate', 'multivariate', 'goal']
     summary.index = ['prot', 'fat', 'carb', 'cal']
-    summary["univ_error"] = (
-        summary["goal"] - summary["univariate"]).apply(abs)
-    summary["multiv_error"] = (
-        summary["goal"] - summary["multivariate"]).apply(abs)
 
     err_list.append(summary)
 
-    # print(summary)
-
-    sum_err_mono = (sum_err_mono + summary["univ_error"].sum()) / 2
-    sum_err_mult = (sum_err_mult + summary["multiv_error"].sum()) / 2
-
-    # print((summary["univ_error"].sum(), summary["multiv_error"].sum()))
-
     # Shopping list
-    # print(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
-    shop_list.append(products_table[['Name', 'multivariate_choice', 'univariate_choice']])
+    shop_list.append(
+        products_table[['Name', 'multivariate_choice', 'univariate_choice']])
 
 
 # average values in 35 rounds
@@ -349,43 +347,53 @@ df_means = by_row_index.mean()
 
 # plot boxplot
 _, ax = plt.subplots()
-columns = [i for i in range(1, number_generation, int(number_generation/10))]
-columns.append(number_generation)
+columns = [i for i in range(1, NUMBER_GEN, int(NUMBER_GEN/10))]
+columns.append(NUMBER_GEN)
 genFilteredColumns = df_means[columns]
 ax.set_xlabel('Number generation')
 ax.set_ylabel('Fitness')
 boxplot = genFilteredColumns.boxplot(ax=ax, grid=False)
-plt.savefig(os.path.join(dir, f"boxplot_{number_generation}_{id_time}.png"))
+plt.savefig(os.path.join(dir, f"boxplot_{NUMBER_GEN}_{id_time}.png"))
 
 # plot line chart
 _, ax = plt.subplots()
 mean = pd.DataFrame(columns=['mean'])
-for i in range(1,number_generation+1):
+for i in range(1, NUMBER_GEN+1):
     mean.loc[i] = df_means[i].mean()
 ax.set_xlabel('Number generation')
 ax.set_ylabel('Fitness')
 mean.plot(ax=ax)
 
-plt.savefig(os.path.join(dir, f"mean_{number_generation}_{id_time}.png"))
+plt.savefig(os.path.join(dir, f"mean_{NUMBER_GEN}_{id_time}.png"))
 
 # average errors in 35 rounds
 df_concat = pd.concat(err_list)
 by_row_index = df_concat.groupby(df_concat.index)
 df_means = by_row_index.mean()
-df_means.to_csv(os.path.join(dir, f'errors_{number_generation}_{id_time}.csv'))
+df_means = df_means.round()
+df_means["univ_error"] = (
+    df_means["goal"] - df_means["univariate"]).apply(abs)
+df_means["multiv_error"] = (
+    df_means["goal"] - df_means["multivariate"]).apply(abs)
+df_means.to_csv(os.path.join(dir, f'errors_{NUMBER_GEN}_{id_time}.csv'))
+sum_err_mono = df_means["univ_error"].sum()
+sum_err_mult = df_means["multiv_error"].sum()
 
-# df_means = df_means.drop(df_means.index[[0]])
-# # plot pie chart
-# _, ax = plt.subplots()
-# ax.pie(df_means['univariate'].to_list(), labels=df_means.index.to_list(), autopct='%1.1f%%', startangle=90)
-# ax.axis('equal')
-# plt.savefig(os.path.join(dir, f"univariate{number_generation}_{id_time}.png"))
+df_means = df_means.drop(df_means.index[[0]])
+# plot pie chart
+_, ax = plt.subplots()
+ax.pie(df_means['univariate'].to_list(),
+       labels=df_means.index.to_list(), autopct='%1.1f%%', startangle=90)
+ax.axis('equal')
+plt.savefig(os.path.join(dir, f"univariate_{NUMBER_GEN}_{id_time}.png"))
 
-# # plot pie chart
-# _, ax = plt.subplots()
-# ax.pie(df_means['multivariate'].to_list(), labels=df_means.index.to_list(), autopct='%1.1f%%', startangle=90)
-# ax.axis('equal')
-# plt.savefig(os.path.join(dir, f"multivariate{number_generation}_{id_time}.png"))
+# plot pie chart
+_, ax = plt.subplots()
+ax.pie(df_means['multivariate'].to_list(),
+       labels=df_means.index.to_list(), autopct='%1.1f%%', startangle=90)
+ax.axis('equal')
+plt.savefig(os.path.join(
+    dir, f"multivariate_{NUMBER_GEN}_{id_time}.png"))
 
 # average shopping lists in 35 rounds
 df_concat = pd.concat(shop_list)
@@ -393,7 +401,7 @@ by_row_index = df_concat.groupby(df_concat.index)
 df_means2 = by_row_index.mean()
 df_means2['multivariate_choice'] = df_means2['multivariate_choice'].round()
 df_means2['univariate_choice'] = df_means2['univariate_choice'].round()
-df_means2.to_csv(os.path.join(dir, f'shop_{number_generation}_{id_time}.csv'))
+df_means2.to_csv(os.path.join(dir, f'shop_{NUMBER_GEN}_{id_time}.csv'))
 
 
 print("mono execution time = {}".format(mono_time))
