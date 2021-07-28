@@ -20,7 +20,7 @@ percentage_fat = 0.2
 # percentage_prot = 0.3
 # percentage_carb = 0.5
 # percentage_fat = 0.2
-number_generation = 100
+number_generation = 50
 # total_calories = int(input('Entre com o total de calorias por dia: '))
 # days_period = int(input('Entre com o periodo de dias: '))
 # total_calories = total_calories * days_period
@@ -227,6 +227,8 @@ gen_list_mono = []
 gen_list_mult = []
 err_list = []
 shop_list = []
+sum_err_mono = 0
+sum_err_mult = 0
 
 for i in range(35):
     print("-- Round %i --" % i)
@@ -311,11 +313,11 @@ for i in range(35):
     summary = pd.DataFrame.from_records(
         [
             [products_table['univariate_gr_prot'].sum(
-            ), products_table['multivariate_gr_prot'].sum(), gram_prot],
+            ) * prot_cal_p_gram, products_table['multivariate_gr_prot'].sum() * prot_cal_p_gram, cal_prot],
             [products_table['univariate_gr_fat'].sum(
-            ), products_table['multivariate_gr_fat'].sum(), gram_fat],
+            ) * fat_cal_p_gram, products_table['multivariate_gr_fat'].sum() * fat_cal_p_gram, cal_fat],
             [products_table['univariate_gr_carb'].sum(
-            ), products_table['multivariate_gr_carb'].sum(), gram_carb],
+            ) * carb_cal_p_gram, products_table['multivariate_gr_carb'].sum() * carb_cal_p_gram, cal_carb],
             [products_table['univariate_cal'].sum(), products_table['multivariate_cal'].sum(),
              sum((cal_prot, cal_carb, cal_fat))]
         ])
@@ -329,6 +331,9 @@ for i in range(35):
     err_list.append(summary)
 
     # print(summary)
+
+    sum_err_mono = (sum_err_mono + summary["univ_error"].sum()) / 2
+    sum_err_mult = (sum_err_mult + summary["multiv_error"].sum()) / 2
 
     # print((summary["univ_error"].sum(), summary["multiv_error"].sum()))
 
@@ -369,14 +374,29 @@ by_row_index = df_concat.groupby(df_concat.index)
 df_means = by_row_index.mean()
 df_means.to_csv(os.path.join(dir, f'errors_{number_generation}_{id_time}.csv'))
 
+# df_means = df_means.drop(df_means.index[[0]])
+# # plot pie chart
+# _, ax = plt.subplots()
+# ax.pie(df_means['univariate'].to_list(), labels=df_means.index.to_list(), autopct='%1.1f%%', startangle=90)
+# ax.axis('equal')
+# plt.savefig(os.path.join(dir, f"univariate{number_generation}_{id_time}.png"))
+
+# # plot pie chart
+# _, ax = plt.subplots()
+# ax.pie(df_means['multivariate'].to_list(), labels=df_means.index.to_list(), autopct='%1.1f%%', startangle=90)
+# ax.axis('equal')
+# plt.savefig(os.path.join(dir, f"multivariate{number_generation}_{id_time}.png"))
+
 # average shopping lists in 35 rounds
 df_concat = pd.concat(shop_list)
 by_row_index = df_concat.groupby(df_concat.index)
-df_means = by_row_index.mean()
-df_means['multivariate_choice'] = df_means['multivariate_choice'].round()
-df_means['univariate_choice'] = df_means['univariate_choice'].round()
-df_means.to_csv(os.path.join(dir, f'shop_{number_generation}_{id_time}.csv'))
+df_means2 = by_row_index.mean()
+df_means2['multivariate_choice'] = df_means2['multivariate_choice'].round()
+df_means2['univariate_choice'] = df_means2['univariate_choice'].round()
+df_means2.to_csv(os.path.join(dir, f'shop_{number_generation}_{id_time}.csv'))
 
 
 print("mono execution time = {}".format(mono_time))
 print("mult execution time = {}".format(mult_time))
+print("mono error = {}".format(sum_err_mono))
+print("mult error = {}".format(sum_err_mult))
